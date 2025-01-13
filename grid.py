@@ -8,7 +8,7 @@ zoom_min = 0.5  # Minimum zoom level
 zoom_max = 2  # Maximum zoom level
 
 # Initialize the grid with zeros (open tiles)
-grid_size = (64, 40)  # Initial grid size (rows, columns)
+grid_size = (32, 40)  # Initial grid size (rows, columns)
 grid = np.zeros(grid_size, dtype=int)
 
 # Create a Tkinter window
@@ -65,9 +65,9 @@ def on_zoom(event):
         zoom_factor = min(zoom_factor + 0.1, zoom_max)  # Zoom in
     else:
         zoom_factor = max(zoom_factor - 0.1, zoom_min)  # Zoom out
-    tile_size = int(30 * zoom_factor)  # Adjust tile size
+    tile_size = int(20 * zoom_factor)  # Adjust tile size based on zoom
     canvas.config(width=grid_size[1] * tile_size, height=grid_size[0] * tile_size)  # Adjust canvas size
-    draw_grid()  # Redraw the grid
+    draw_grid()  # Redraw the grid with updated zoom
 
 # Mouse drag handler for panning
 def on_canvas_drag(event):
@@ -83,9 +83,23 @@ def on_canvas_drag_start(event):
     drag_start_x = event.x - offset_x
     drag_start_y = event.y - offset_y
 
-# Function to show the final grid as a 2D array
+# Function to show the final grid as a 2D array and save to a file
 def show_final_grid():
+    # Print the grid to the console (or use this data in the game)
     print(grid)
+    
+    # Save the grid to a text file
+    np.savetxt("grid.txt", grid, fmt="%d")
+    print("Grid saved to 'grid.txt'.")
+
+# Function to load the grid from a file if it exists
+def load_grid():
+    global grid
+    try:
+        grid = np.loadtxt("grid.txt", dtype=int)
+        print("Grid loaded from 'grid.txt'.")
+    except FileNotFoundError:
+        print("No saved grid found, starting with an empty grid.")
 
 # Grid resizing controls
 resize_frame = tk.Frame(root)
@@ -120,7 +134,7 @@ def resize_grid():
 resize_button = tk.Button(resize_frame, text="Resize Grid", command=resize_grid)
 resize_button.pack(side="left")
 
-# Button to print the final grid when finished drawing
+# Button to print the final grid when finished drawing and save it
 show_button = tk.Button(root, text="Show Final Grid", command=show_final_grid)
 show_button.pack()
 
@@ -130,6 +144,9 @@ canvas.bind("<Button-3>", on_canvas_click)  # Right-click for erasing
 canvas.bind("<B2-Motion>", on_canvas_drag)  # Dragging to pan
 canvas.bind("<ButtonPress-2>", on_canvas_drag_start)  # Start dragging
 canvas.bind("<MouseWheel>", on_zoom)  # Scroll for zoom
+
+# Load the grid from a file when the program starts
+load_grid()
 
 # Initial grid drawing
 draw_grid()
