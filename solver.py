@@ -19,11 +19,11 @@ def visualize_grids(grids, squares, titles):
 
         # Define colors for each square size
         color_map = {
-            3: 'blue',
+            3: 'red',
             2: 'green',
-            4: 'red',
-            5: 'purple',
-            6: 'orange'  # Add colors as needed
+            4: 'saddlebrown',
+            5: 'yellow',
+            6: 'blue'  # Add colors as needed
         }
 
         # Draw squares and handle different tile types
@@ -39,7 +39,7 @@ def visualize_grids(grids, squares, titles):
                     ax.add_patch(rect)
                 elif label == 0:  # Unused square
                     rect = plt.Rectangle(
-                        (j, i), 1, 1, edgecolor='black', facecolor='white', linewidth=2
+                        (j, i), 1, 1, edgecolor='black', facecolor='green', linewidth=2
                     )
                     ax.add_patch(rect)
                 elif label > 0 and label not in drawn:  # Squares to be drawn
@@ -129,13 +129,45 @@ def optimize_placement(grid, squares, num_mandatory):
             if overlap:
                 model.Add(sum(overlap) <= 1)
 
+    alignment_penalty = []
+
+    for s_id1, (size1, label1) in enumerate(squares):
+        if size1 == 5:  # Only for 5x5 squares
+            for s_id2, (size2, label2) in enumerate(squares):
+                if size2 == 5 and s_id1 < s_id2:  # Pair each 5x5 square only once
+                    for i1 in range(rows - size1 + 1):
+                        for j1 in range(cols - size1 + 1):
+                            for i2 in range(rows - size2 + 1):
+                                for j2 in range(cols - size2 + 1):
+                                    # Create an auxiliary variable for joint placement
+                                    placed_together = model.NewBoolVar(f'placed_{s_id1}_{i1}_{j1}_{s_id2}_{i2}_{j2}')
+                                    model.AddBoolAnd([placements[(s_id1, i1, j1)], placements[(s_id2, i2, j2)]]).OnlyEnforceIf(placed_together)
+
+                                    # Define misalignment penalties
+                                    vertical_diff = abs(i1 - i2)
+                                    horizontal_diff = abs(j1 - j2)
+
+                                    # Add vertical misalignment penalty
+                                    vertical_penalty = model.NewIntVar(0, rows, f'vert_penalty_{s_id1}_{s_id2}')
+                                    model.Add(vertical_penalty == vertical_diff).OnlyEnforceIf(placed_together)
+                                    alignment_penalty.append(vertical_penalty)
+
+                                    # Add horizontal misalignment penalty
+                                    horizontal_penalty = model.NewIntVar(0, cols, f'horiz_penalty_{s_id1}_{s_id2}')
+                                    model.Add(horizontal_penalty == horizontal_diff).OnlyEnforceIf(placed_together)
+                                    alignment_penalty.append(horizontal_penalty)
+
+
     # Objective: Prioritize mandatory squares and maximize optional square placement
     model.Maximize(
         10 * sum(placements[(s_id, i, j)] for s_id, (size, label) in enumerate(squares) if label < num_mandatory for i in range(rows - size + 1) for j in range(cols - size + 1))
         + sum(placements[(s_id, i, j)] for s_id, (size, label) in enumerate(squares) if label >= num_mandatory for i in range(rows - size + 1) for j in range(cols - size + 1))
+        - sum(alignment_penalty)
     )
 
     # Solve the model
+    print(solver.parameters.num_search_workers)
+    solver.parameters.num_search_workers = 10
     solver = cp_model.CpSolver()
     status = solver.Solve(model)
 
@@ -154,17 +186,44 @@ def optimize_placement(grid, squares, num_mandatory):
 
 # Initialize the grid with blocked areas
 grid_size = (16, 20)
-grid = np.zeros(grid_size, dtype=int)
-grid[10:16, 17:20] = -1  # Center 3x3 is blocked
-grid[15:16, 13:20] = -1  # Center 3x3 is blocked
+try:
+    grid = np.loadtxt("grid_formatted.txt", dtype=int)
+    print("Grid loaded from 'grid_formatted.txt'.")
+except FileNotFoundError:
+    exit()
+
+def construct_squares_list(mandatory_squares, optional_squares):
+    # Calculate num_mandatory as the sum of the second numbers in the mandatory_squares list
+    num_mandatory = sum(count for _, count in mandatory_squares)
+    index = 1
+    # Build the mandatory squares list
+    squares = []
+    for size, count in mandatory_squares:
+        if count > 0:
+            for i in range(1, count + 1):
+                squares.extend([(size, index)])
+                index +=1
+
+    # Append the optional squares list
+    for size, count in optional_squares:
+        if count > 0:
+            for i in range(1 + num_mandatory, count + 1 + num_mandatory):
+                squares.extend([(size, index)])
+                index+=1
+
+    return squares, num_mandatory
 
 # Define squares (size, label)
-mandatory_squares = [(5, i) for i in range(1, 12)]  # Sizes 3x3, labels 1-8
-optional_squares = [(2, i) for i in range(12, 17)]  # Sizes 2x2, labels 9-10
-squares = mandatory_squares + optional_squares
+mandatory_squares = [(2, 0), (3, 10), (4, 10), (5, 6), (6, 0)]  # Sizes 3x3, labels 1-8
+optional_squares = [(2, 0), (3, 0), (4, 0), (5, 0), (6, 0)]  # Sizes 3x3, labels 1-8
+squares, mandatory = construct_squares_list(mandatory_squares, optional_squares)
+# mandatory_squares = [(5, i) for i in range(1, 12)]  # Sizes 3x3, labels 1-8
+# optional_squares = [(2, i) for i in range(12, 17)]  # Sizes 2x2, labels 9-10
+# squares = mandatory_squares + optional_squares
+# print(squares)
 
 # Optimize placement and generate multiple unique solutions
-def find_unique_solutions(grid, squares, max_solutions=5, max_attempts=15, num_mandatory=0):
+def find_unique_solutions(grid, squares, max_solutions=1, max_attempts=15, num_mandatory=0):
     solutions = []
     seen_grids = set()
 
@@ -187,7 +246,7 @@ def find_unique_solutions(grid, squares, max_solutions=5, max_attempts=15, num_m
     return solutions
 
 # Generate solutions
-solutions = find_unique_solutions(grid, squares, max_solutions=5, max_attempts=30, num_mandatory=len(mandatory_squares))
+solutions = find_unique_solutions(grid, squares, max_solutions=1, max_attempts=30, num_mandatory=mandatory)
 
 titles = [f"Solution {i + 1}" for i in range(len(solutions))]
 
