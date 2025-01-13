@@ -4,6 +4,8 @@ import numpy as np
 from matplotlib.widgets import Button
 
 # Function to visualize the grid
+
+
 def visualize_grids(grids, squares, titles):
     current_index = 0
 
@@ -92,6 +94,8 @@ def visualize_grids(grids, squares, titles):
     plt.show()
 
 # Create and solve the model
+
+
 def optimize_placement(grid, squares, num_mandatory):
     model = cp_model.CpModel()
     rows, cols = grid.shape
@@ -101,15 +105,18 @@ def optimize_placement(grid, squares, num_mandatory):
     for s_id, (size, label) in enumerate(squares):
         for i in range(rows - size + 1):
             for j in range(cols - size + 1):
-                placements[(s_id, i, j)] = model.NewBoolVar(f'square_{label}_at_{i}_{j}')
+                placements[(s_id, i, j)] = model.NewBoolVar(
+                    f'square_{label}_at_{i}_{j}')
 
     # Constraints
     for s_id, (size, label) in enumerate(squares):
         # Ensure each square is placed exactly once for mandatory squares
         if label <= num_mandatory:  # Mandatory squares have labels <= 8
-            model.Add(sum(placements[(s_id, i, j)] for i in range(rows - size + 1) for j in range(cols - size + 1)) == 1)
+            model.Add(sum(placements[(s_id, i, j)] for i in range(
+                rows - size + 1) for j in range(cols - size + 1)) == 1)
         else:  # Optional squares can be placed at most once
-            model.Add(sum(placements[(s_id, i, j)] for i in range(rows - size + 1) for j in range(cols - size + 1)) <= 1)
+            model.Add(sum(placements[(s_id, i, j)] for i in range(
+                rows - size + 1) for j in range(cols - size + 1)) <= 1)
 
         # Ensure squares are placed within valid regions
         for i in range(rows - size + 1):
@@ -129,45 +136,42 @@ def optimize_placement(grid, squares, num_mandatory):
             if overlap:
                 model.Add(sum(overlap) <= 1)
 
-    alignment_penalty = []
+    # alignment_penalty = []
+    # for s_id1, (size1, label1) in enumerate(squares):
+    #     if size1 == 5:  # Only for 5x5 squares
+    #         for s_id2, (size2, label2) in enumerate(squares):
+    #             if size2 == 5 and s_id1 < s_id2:  # Pair each 5x5 square only once
+    #                 for i1 in range(rows - size1 + 1):
+    #                     for j1 in range(cols - size1 + 1):
+    #                         for i2 in range(rows - size2 + 1):
+    #                             for j2 in range(cols - size2 + 1):
+    #                                 # Create an auxiliary variable for joint placement
+    #                                 placed_together = model.NewBoolVar(
+    #                                     f'placed_{s_id1}_{i1}_{j1}_{s_id2}_{i2}_{j2}')
+    #                                 model.AddBoolAnd([placements[(s_id1, i1, j1)], placements[(
+    #                                     s_id2, i2, j2)]]).OnlyEnforceIf(placed_together)
 
-    for s_id1, (size1, label1) in enumerate(squares):
-        if size1 == 5:  # Only for 5x5 squares
-            for s_id2, (size2, label2) in enumerate(squares):
-                if size2 == 5 and s_id1 < s_id2:  # Pair each 5x5 square only once
-                    for i1 in range(rows - size1 + 1):
-                        for j1 in range(cols - size1 + 1):
-                            for i2 in range(rows - size2 + 1):
-                                for j2 in range(cols - size2 + 1):
-                                    # Create an auxiliary variable for joint placement
-                                    placed_together = model.NewBoolVar(f'placed_{s_id1}_{i1}_{j1}_{s_id2}_{i2}_{j2}')
-                                    model.AddBoolAnd([placements[(s_id1, i1, j1)], placements[(s_id2, i2, j2)]]).OnlyEnforceIf(placed_together)
+    #                                 # Directly add penalties to the objective function instead of creating separate penalty variables
+    #                                 vertical_diff = abs(i1 - i2)
+    #                                 horizontal_diff = abs(j1 - j2)
 
-                                    # Define misalignment penalties
-                                    vertical_diff = abs(i1 - i2)
-                                    horizontal_diff = abs(j1 - j2)
-
-                                    # Add vertical misalignment penalty
-                                    vertical_penalty = model.NewIntVar(0, rows, f'vert_penalty_{s_id1}_{s_id2}')
-                                    model.Add(vertical_penalty == vertical_diff).OnlyEnforceIf(placed_together)
-                                    alignment_penalty.append(vertical_penalty)
-
-                                    # Add horizontal misalignment penalty
-                                    horizontal_penalty = model.NewIntVar(0, cols, f'horiz_penalty_{s_id1}_{s_id2}')
-                                    model.Add(horizontal_penalty == horizontal_diff).OnlyEnforceIf(placed_together)
-                                    alignment_penalty.append(horizontal_penalty)
-
+    #                                 alignment_penalty.append(
+    #                                     10 * vertical_diff + 10 * horizontal_diff)
 
     # Objective: Prioritize mandatory squares and maximize optional square placement
     model.Maximize(
-        10 * sum(placements[(s_id, i, j)] for s_id, (size, label) in enumerate(squares) if label < num_mandatory for i in range(rows - size + 1) for j in range(cols - size + 1))
-        + sum(placements[(s_id, i, j)] for s_id, (size, label) in enumerate(squares) if label >= num_mandatory for i in range(rows - size + 1) for j in range(cols - size + 1))
-        - sum(alignment_penalty)
+        10 * sum(placements[(s_id, i, j)] for s_id, (size, label) in enumerate(squares) if label <
+                 num_mandatory for i in range(rows - size + 1) for j in range(cols - size + 1))
+        + sum(placements[(s_id, i, j)] for s_id, (size, label) in enumerate(squares) if label >=
+              num_mandatory for i in range(rows - size + 1) for j in range(cols - size + 1))
+        # - sum(alignment_penalty)
     )
+    return model, placements
 
+
+def solve_model(model, grid, placements):
+    rows, cols = grid.shape
     # Solve the model
-    print(solver.parameters.num_search_workers)
-    solver.parameters.num_search_workers = 10
     solver = cp_model.CpSolver()
     status = solver.Solve(model)
 
@@ -184,6 +188,7 @@ def optimize_placement(grid, squares, num_mandatory):
 
     return grid
 
+
 # Initialize the grid with blocked areas
 grid_size = (16, 20)
 try:
@@ -191,6 +196,7 @@ try:
     print("Grid loaded from 'grid_formatted.txt'.")
 except FileNotFoundError:
     exit()
+
 
 def construct_squares_list(mandatory_squares, optional_squares):
     # Calculate num_mandatory as the sum of the second numbers in the mandatory_squares list
@@ -202,34 +208,41 @@ def construct_squares_list(mandatory_squares, optional_squares):
         if count > 0:
             for i in range(1, count + 1):
                 squares.extend([(size, index)])
-                index +=1
+                index += 1
 
     # Append the optional squares list
     for size, count in optional_squares:
         if count > 0:
             for i in range(1 + num_mandatory, count + 1 + num_mandatory):
                 squares.extend([(size, index)])
-                index+=1
+                index += 1
 
     return squares, num_mandatory
 
+
 # Define squares (size, label)
-mandatory_squares = [(2, 0), (3, 10), (4, 10), (5, 6), (6, 0)]  # Sizes 3x3, labels 1-8
-optional_squares = [(2, 0), (3, 0), (4, 0), (5, 0), (6, 0)]  # Sizes 3x3, labels 1-8
-squares, mandatory = construct_squares_list(mandatory_squares, optional_squares)
+mandatory_squares = [(2, 0), (3, 13), (4, 10), (5, 11),
+                     (6, 0)]  # Sizes 3x3, labels 1-8
+optional_squares = [(2, 0), (3, 0), (4, 0), (5, 0),
+                    (6, 0)]  # Sizes 3x3, labels 1-8
+squares, mandatory = construct_squares_list(
+    mandatory_squares, optional_squares)
 # mandatory_squares = [(5, i) for i in range(1, 12)]  # Sizes 3x3, labels 1-8
 # optional_squares = [(2, i) for i in range(12, 17)]  # Sizes 2x2, labels 9-10
 # squares = mandatory_squares + optional_squares
 # print(squares)
 
 # Optimize placement and generate multiple unique solutions
+
+
 def find_unique_solutions(grid, squares, max_solutions=1, max_attempts=15, num_mandatory=0):
     solutions = []
     seen_grids = set()
 
+    model, placements = optimize_placement(grid, squares, num_mandatory)
     for attempt in range(max_attempts):
         temp_grid = grid.copy()
-        result_grid = optimize_placement(temp_grid, squares, num_mandatory)
+        result_grid = solve_model(model, temp_grid, placements)
 
         # Convert grid to a tuple for hashable comparison
         grid_tuple = tuple(map(tuple, result_grid))
@@ -245,8 +258,9 @@ def find_unique_solutions(grid, squares, max_solutions=1, max_attempts=15, num_m
 
     return solutions
 
+
 # Generate solutions
-solutions = find_unique_solutions(grid, squares, max_solutions=1, max_attempts=30, num_mandatory=mandatory)
+solutions = find_unique_solutions(grid, squares, max_solutions=5, max_attempts=100, num_mandatory=mandatory)
 
 titles = [f"Solution {i + 1}" for i in range(len(solutions))]
 
