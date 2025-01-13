@@ -1,65 +1,94 @@
 from ortools.sat.python import cp_model
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.widgets import Button
 
 # Function to visualize the grid
-def visualize_grid(grid, squares, title="Grid State"):
+def visualize_grids(grids, squares, titles):
+    current_index = 0
+
     fig, ax = plt.subplots(figsize=(8, 8))
-    ax.set_xlim(0, grid.shape[1])
-    ax.set_ylim(0, grid.shape[0])
-    ax.set_aspect('equal')
-    ax.invert_yaxis()
+    plt.subplots_adjust(bottom=0.2)
 
-    # Define colors for each square size
-    color_map = {
-        3: 'blue',
-        2: 'green',
-        4: 'red',
-        5: 'purple',
-        6: 'orange'  # Add colors as needed
-    }
+    def draw_grid(grid, title):
+        ax.clear()
+        ax.set_xlim(0, grid.shape[1])
+        ax.set_ylim(0, grid.shape[0])
+        ax.set_aspect('equal')
+        ax.invert_yaxis()
 
-    # Draw squares and handle different tile types
-    drawn = set()
-    for i in range(grid.shape[0]):
-        for j in range(grid.shape[1]):
-            label = grid[i, j]
+        # Define colors for each square size
+        color_map = {
+            3: 'blue',
+            2: 'green',
+            4: 'red',
+            5: 'purple',
+            6: 'orange'  # Add colors as needed
+        }
 
-            if label == -1:  # Blocked square
-                rect = plt.Rectangle(
-                    (j, i), 1, 1, edgecolor='black', facecolor='black', linewidth=2
-                )
-                ax.add_patch(rect)
-            elif label == 0:  # Unused square
-                rect = plt.Rectangle(
-                    (j, i), 1, 1, edgecolor='black', facecolor='white', linewidth=2
-                )
-                ax.add_patch(rect)
-            elif label > 0 and label not in drawn:  # Squares to be drawn
-                drawn.add(label)
+        # Draw squares and handle different tile types
+        drawn = set()
+        for i in range(grid.shape[0]):
+            for j in range(grid.shape[1]):
+                label = grid[i, j]
 
-                # Find the size of the square from the input squares
-                size = next(size for size, lbl in squares if lbl == label)
-                color = color_map.get(size, 'gray')
+                if label == -1:  # Blocked square
+                    rect = plt.Rectangle(
+                        (j, i), 1, 1, edgecolor='black', facecolor='black', linewidth=2
+                    )
+                    ax.add_patch(rect)
+                elif label == 0:  # Unused square
+                    rect = plt.Rectangle(
+                        (j, i), 1, 1, edgecolor='black', facecolor='white', linewidth=2
+                    )
+                    ax.add_patch(rect)
+                elif label > 0 and label not in drawn:  # Squares to be drawn
+                    drawn.add(label)
 
-                # Find the top-left corner of the square
-                for x in range(i, i + size):
-                    for y in range(j, j + size):
-                        if 0 <= x < grid.shape[0] and 0 <= y < grid.shape[1] and grid[x, y] == label:
-                            top_left = (y, x)
-                            break
-                    else:
-                        continue
-                    break
+                    # Find the size of the square from the input squares
+                    size = next(size for size, lbl in squares if lbl == label)
+                    color = color_map.get(size, 'gray')
 
-                # Draw the square as a rectangle
-                rect = plt.Rectangle(
-                    top_left, size, size, edgecolor='black', facecolor=color, linewidth=2
-                )
-                ax.add_patch(rect)
+                    # Find the top-left corner of the square
+                    for x in range(i, i + size):
+                        for y in range(j, j + size):
+                            if 0 <= x < grid.shape[0] and 0 <= y < grid.shape[1] and grid[x, y] == label:
+                                top_left = (y, x)
+                                break
+                        else:
+                            continue
+                        break
 
-    plt.title(title)
-    plt.axis('off')
+                    # Draw the square as a rectangle
+                    rect = plt.Rectangle(
+                        top_left, size, size, edgecolor='black', facecolor=color, linewidth=2
+                    )
+                    ax.add_patch(rect)
+
+        ax.set_title(title)
+        ax.axis('off')
+        fig.canvas.draw()
+
+    def on_prev(event):
+        nonlocal current_index
+        current_index = (current_index - 1) % len(grids)
+        draw_grid(grids[current_index], titles[current_index])
+
+    def on_next(event):
+        nonlocal current_index
+        current_index = (current_index + 1) % len(grids)
+        draw_grid(grids[current_index], titles[current_index])
+
+    # Add navigation buttons
+    axprev = plt.axes([0.1, 0.05, 0.1, 0.075])
+    axnext = plt.axes([0.8, 0.05, 0.1, 0.075])
+    bprev = Button(axprev, 'Previous')
+    bnext = Button(axnext, 'Next')
+    bprev.on_clicked(on_prev)
+    bnext.on_clicked(on_next)
+
+    # Initial draw
+    draw_grid(grids[current_index], titles[current_index])
     plt.show()
 
 # Create and solve the model
@@ -134,8 +163,33 @@ mandatory_squares = [(5, i) for i in range(1, 12)]  # Sizes 3x3, labels 1-8
 optional_squares = [(2, i) for i in range(12, 17)]  # Sizes 2x2, labels 9-10
 squares = mandatory_squares + optional_squares
 
-# Optimize placement
-grid = optimize_placement(grid, squares, len(mandatory_squares))
+# Optimize placement and generate multiple unique solutions
+def find_unique_solutions(grid, squares, max_solutions=5, max_attempts=15, num_mandatory=0):
+    solutions = []
+    seen_grids = set()
 
-# Visualize final grid
-visualize_grid(grid, squares, title="Final Grid State with Optimized Placement")
+    for attempt in range(max_attempts):
+        temp_grid = grid.copy()
+        result_grid = optimize_placement(temp_grid, squares, num_mandatory)
+
+        # Convert grid to a tuple for hashable comparison
+        grid_tuple = tuple(map(tuple, result_grid))
+
+        # Check if solution is unique
+        if grid_tuple not in seen_grids:
+            seen_grids.add(grid_tuple)
+            solutions.append(result_grid)
+
+        # Stop if we have enough solutions
+        if len(solutions) >= max_solutions:
+            break
+
+    return solutions
+
+# Generate solutions
+solutions = find_unique_solutions(grid, squares, max_solutions=5, max_attempts=30, num_mandatory=len(mandatory_squares))
+
+titles = [f"Solution {i + 1}" for i in range(len(solutions))]
+
+# Visualize all solutions
+visualize_grids(solutions, squares, titles)
