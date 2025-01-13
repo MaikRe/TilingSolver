@@ -17,7 +17,7 @@ root = tk.Tk()
 root.title("Tile Grid Drawer")
 
 # Variables for panning and drawing
-offset_x, offset_y = 0, 0
+offset_x, offset_y = int(tile_size/2), int(tile_size/2)
 drag_start_x, drag_start_y = None, None
 drag_threshold = 5  # Threshold distance to distinguish between click and drag
 is_drawing = False  # Flag to track if we're currently drawing
@@ -161,8 +161,8 @@ def on_zoom(event):
         zoom_factor = max(zoom_factor - 0.1, zoom_min)  # Zoom out
     tile_size = int(20 * zoom_factor)  # Adjust tile size based on zoom
     # Adjust canvas size
-    canvas.config(width=grid_size[1] * tile_size,
-                  height=grid_size[0] * tile_size)
+    canvas.config(width=grid.shape[1] * tile_size,
+                  height=grid.shape[0] * tile_size)
     draw_grid()  # Redraw the grid with updated zoom
 
 # Mouse drag handler for panning
@@ -225,6 +225,7 @@ def load_grid():
         print("No saved grid found, starting with an empty grid.")
     row_entry.insert(0, grid.shape[0])
     col_entry.insert(0, grid.shape[1])
+    resize_grid()
 
 # Function to resize the grid
 def resize_grid():
@@ -241,8 +242,8 @@ def resize_grid():
         min_height = min(grid.shape[1], new_grid.shape[1])
         new_grid[0:min_width, 0:min_height] = grid[0:min_width, 0:min_height]
         grid = new_grid
-        canvas.config(width=cols * tile_size + 10,
-                      height=rows * tile_size + 10)
+        canvas.config(width=cols * tile_size + tile_size,
+                      height=rows * tile_size + tile_size)
         draw_grid()
     except ValueError:
         print("Invalid grid dimensions")

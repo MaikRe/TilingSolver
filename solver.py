@@ -41,7 +41,7 @@ def visualize_grids(grids, squares, titles):
                     ax.add_patch(rect)
                 elif label == 0:  # Unused square
                     rect = plt.Rectangle(
-                        (j, i), 1, 1, edgecolor='black', facecolor='green', linewidth=2
+                        (j, i), 1, 1, edgecolor='black', facecolor='white', linewidth=2
                     )
                     ax.add_patch(rect)
                 elif label > 0 and label not in drawn:  # Squares to be drawn
@@ -91,6 +91,7 @@ def visualize_grids(grids, squares, titles):
 
     # Initial draw
     draw_grid(grids[current_index], titles[current_index])
+    plt.savefig('solution.pdf')
     plt.show()
 
 # Create and solve the model
@@ -160,9 +161,9 @@ def optimize_placement(grid, squares, num_mandatory):
 
     # Objective: Prioritize mandatory squares and maximize optional square placement
     model.Maximize(
-        10 * sum(placements[(s_id, i, j)] for s_id, (size, label) in enumerate(squares) if label <
+        100 * sum(placements[(s_id, i, j)] for s_id, (size, label) in enumerate(squares) if label <
                  num_mandatory for i in range(rows - size + 1) for j in range(cols - size + 1))
-        + sum(placements[(s_id, i, j)] for s_id, (size, label) in enumerate(squares) if label >=
+        + sum(placements[(s_id, i, j)] * size * size for s_id, (size, label) in enumerate(squares) if label >=
               num_mandatory for i in range(rows - size + 1) for j in range(cols - size + 1))
         # - sum(alignment_penalty)
     )
@@ -221,10 +222,10 @@ def construct_squares_list(mandatory_squares, optional_squares):
 
 
 # Define squares (size, label)
-mandatory_squares = [(2, 0), (3, 13), (4, 10), (5, 11),
-                     (6, 0)]  # Sizes 3x3, labels 1-8
-optional_squares = [(2, 0), (3, 0), (4, 0), (5, 0),
-                    (6, 0)]  # Sizes 3x3, labels 1-8
+mandatory_squares = [(2, 0), (3, 9), (4, 5), (5, 37),
+                     (6, 1), (8, 1)]  # Sizes 3x3, labels 1-8
+optional_squares = [(2, 10), (3, 5), (4, 5), (5, 5),
+                    (6, 0), (8, 0)]  # Sizes 3x3, labels 1-8
 squares, mandatory = construct_squares_list(
     mandatory_squares, optional_squares)
 # mandatory_squares = [(5, i) for i in range(1, 12)]  # Sizes 3x3, labels 1-8
@@ -260,7 +261,7 @@ def find_unique_solutions(grid, squares, max_solutions=1, max_attempts=15, num_m
 
 
 # Generate solutions
-solutions = find_unique_solutions(grid, squares, max_solutions=5, max_attempts=100, num_mandatory=mandatory)
+solutions = find_unique_solutions(grid, squares, max_solutions=1, max_attempts=10, num_mandatory=mandatory)
 
 titles = [f"Solution {i + 1}" for i in range(len(solutions))]
 
