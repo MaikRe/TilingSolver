@@ -36,7 +36,7 @@ canvas.focus_set()
 
 
 def draw_grid():
-    colors = ["white", "green", "red",
+    colors = ["purple", "green", "red",
               "saddle brown", "yellow", "blue", "white"]
     canvas.delete("all")  # Clear the canvas before drawing
     for row in range(grid.shape[0]):
@@ -148,13 +148,25 @@ def on_canvas_release(event):
 
 def key_press(event):
     global color
-    color = int(event.keysym)
-
+    global tile_size, zoom_factor
+    if event.keysym == "q":
+        zoom_factor = max(zoom_factor - 0.1, zoom_min)  # Zoom out
+    elif event.keysym == "e":
+        zoom_factor = min(zoom_factor + 0.1, zoom_max)  # Zoom in
+    else:
+        color = int(event.keysym)
+    print(event)
+    tile_size = int(20 * zoom_factor)  # Adjust tile size based on zoom
+    # Adjust canvas size
+    canvas.config(width=grid.shape[1] * tile_size,
+                  height=grid.shape[0] * tile_size)
+    draw_grid()  # Redraw the grid with updated zoom
 # Mouse wheel to zoom in and out
 
 
 def on_zoom(event):
     global tile_size, zoom_factor
+    print(event)
     if event.delta > 0:
         zoom_factor = min(zoom_factor + 0.1, zoom_max)  # Zoom in
     else:
@@ -268,7 +280,7 @@ canvas.bind("<ButtonRelease-3>", on_canvas_release)  # Stop drawing on release
 # canvas.bind("<B1-Motion>", on_canvas_drag)  # Left-click for painting
 canvas.bind("<B2-Motion>", on_canvas_drag_pan)  # Dragging to pan
 canvas.bind("<ButtonPress-2>", on_canvas_drag_start)  # Start dragging
-canvas.bind("<MouseWheel>", on_zoom)  # Scroll for zoom
+canvas.bind_all("<MouseWheel>", on_zoom)  # Scroll for zoom
 canvas.bind("<KeyPress>", key_press)
 
 # Load the grid from a file when the program starts

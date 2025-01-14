@@ -51,7 +51,6 @@ def visualize_grids(grids, squares, titles):
                         (j, i), 1, 1, edgecolor='black', facecolor=color_map.get(label, 'gray'), linewidth=1
                     )
                     ax.add_patch(rect)
-
         ax.set_title(title)
         ax.axis('off')
         fig.canvas.draw()
@@ -76,8 +75,10 @@ def visualize_grids(grids, squares, titles):
 
     # Initial draw
     draw_grid(grids[current_index], titles[current_index])
-    plt.show()
     plt.savefig('solution.pdf')
+    for i in range(2, 9):
+        print(f"Tiles of size {i}: {(grids[current_index] == i).sum()/i/i}")
+    plt.show()
 
 # Create and solve the model
 # Create and solve the model
@@ -122,10 +123,8 @@ def optimize_placement(grid, mandatory_sizes):
         )
 
     # Objective: Maximize placement of all squares
-    model.Maximize(
-        sum(100 * total_placements[size] for size in mandatory_sizes.keys()) +  # Reward mandatory squares
-        sum(size * size * total_placements[size] for size in mandatory_sizes.keys()) -  # Reward optional squares
-        sum(grid[i, j] == 0 for i in range(rows) for j in range(cols))  # Penalize empty spaces
+    model.maximize(
+        -sum(grid[i, j] == 0 for i in range(rows) for j in range(cols))
     )
 
 
@@ -192,13 +191,13 @@ except FileNotFoundError:
 # optional_squares = [(2, i) for i in range(12, 17)]  # Sizes 2x2, labels 9-10
 # squares = mandatory_squares + optional_squares
 # print(squares)
-mandatory_sizes = {2:0, 3:9, 4:5, 5:37, 6:1, 8:1}  # Minimum required placements for specific sizes
+mandatory_sizes = {2:1, 3:32, 4:34, 5:167, 6:2, 8:1, 10:0}  # Minimum required placements for specific sizes
 
 # Optimize placement and generate solutions
 # Optimize placement and generate multiple unique solutions
 
 
-def find_unique_solutions(grid, mandatory_sizes, max_solutions=1, max_attempts=15, num_mandatory=0):
+def find_unique_solutions(grid, mandatory_sizes, max_solutions=5, max_attempts=15, num_mandatory=0):
     solutions = []
     seen_grids = set()
 
@@ -224,7 +223,7 @@ def find_unique_solutions(grid, mandatory_sizes, max_solutions=1, max_attempts=1
 
 
 # Generate solutions
-solutions = find_unique_solutions(grid, mandatory_sizes, max_solutions=1, max_attempts=10)
+solutions = find_unique_solutions(grid, mandatory_sizes, max_solutions=3, max_attempts=10)
 
 titles = [f"Solution {i + 1}" for i in range(len(solutions))]
 
