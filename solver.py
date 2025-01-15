@@ -35,12 +35,12 @@ def visualize_grids(grids, squares, titles):
 
                 if label == -1:  # Blocked square
                     rect = plt.Rectangle(
-                        (j, i), 1, 1, edgecolor='black', facecolor='black', linewidth=2
+                        (j, i), 1, 1, edgecolor='black', facecolor='black', linewidth=0.5
                     )
                     ax.add_patch(rect)
                 elif label == 0:  # Unused square
                     rect = plt.Rectangle(
-                        (j, i), 1, 1, edgecolor='black', facecolor='white', linewidth=2
+                        (j, i), 1, 1, edgecolor='black', facecolor='white', linewidth=0.5
                     )
                     ax.add_patch(rect)
                 elif label > 0:  # Squares to be drawn
@@ -48,7 +48,7 @@ def visualize_grids(grids, squares, titles):
 
                     # Draw the square as a rectangle
                     rect = plt.Rectangle(
-                        (j, i), 1, 1, edgecolor='black', facecolor=color_map.get(label, 'gray'), linewidth=1
+                        (j, i), 1, 1, edgecolor='black', facecolor=color_map.get(label, 'gray'), linewidth=0.5
                     )
                     ax.add_patch(rect)
         ax.set_title(title)
